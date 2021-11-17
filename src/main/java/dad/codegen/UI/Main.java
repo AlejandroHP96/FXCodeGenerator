@@ -1,8 +1,9 @@
-package dad.codegen.UI;
+package dad.codegen.ui;
 
 public class Main {
-    public static void main(String[] args) {
 
-        FXCodeGenApp.main(args);
-    }
+	public static void main(String[] args) {
+		FXCodeGenApp.main(args);
+	}
+
 }

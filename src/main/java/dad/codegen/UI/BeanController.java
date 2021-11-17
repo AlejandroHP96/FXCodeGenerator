@@ -1,4 +1,4 @@
-package dad.codegen.UI;
+package dad.codegen.ui;
 
 import java.io.IOException;
 import java.net.URL;
@@ -7,6 +7,7 @@ import java.util.ResourceBundle;
 import dad.codegen.model.javafx.Bean;
 import dad.codegen.model.javafx.Property;
 import dad.codegen.model.javafx.Type;
+import javafx.fxml.Initializable;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleListProperty;
@@ -19,7 +20,6 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableColumn;
@@ -29,164 +29,191 @@ import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.layout.GridPane;
 
 public class BeanController implements Initializable {
+	
+	// controllers 
+	
+	private EditBeanController editBeanController = new EditBeanController();
 
-    //controllers
+	// model (interno)
 
-    ModificarController modificarController = new ModificarController();
+	private StringProperty name = new SimpleStringProperty();
+	private ObjectProperty<Bean> parent = new SimpleObjectProperty<>();
+	private ListProperty<Property> properties = new SimpleListProperty<>(FXCollections.observableArrayList());
+	private ObjectProperty<Property> selectedProperty = new SimpleObjectProperty<>();
 
-    //model
+	// model (externo)
 
-    private StringProperty name = new SimpleStringProperty();
-    private ObjectProperty<Bean> parent = new SimpleObjectProperty<>();
-    private ListProperty<Property> properties = new SimpleListProperty<>(FXCollections.observableArrayList());
+	private ObjectProperty<Bean> bean = new SimpleObjectProperty<>();
+	private ListProperty<Bean> beans = new SimpleListProperty<>(FXCollections.observableArrayList());
 
-    private ObjectProperty<Bean> bean = new SimpleObjectProperty<>();
-    private ListProperty<Bean> beans = new SimpleListProperty<>(FXCollections.observableArrayList());
+	// view
 
-    // view
+	@FXML
+	private GridPane view;
 
-    @FXML
-    private Button editarPropiedadButton;
+	@FXML
+	private TextField nombreText;
 
-    @FXML
-    private Button eliminarPropiedadButton;
+	@FXML
+	private ComboBox<Bean> padreCombo;
 
-    @FXML
-    private TableColumn<Property, Bean> genericoColumn;
+	@FXML
+	private Button quitarPadreButton;
 
-    @FXML
-    private TableColumn<Property, String> nombreColumn;
+	@FXML
+	private Button nuevaPropiedadButton;
 
-    @FXML
-    private TextField nombreText;
+	@FXML
+	private Button eliminarPropiedadButton;
 
-    @FXML
-    private Button nuevaPropiedadButton;
+	@FXML
+	private Button editarPropiedadButton;
 
-    @FXML
-    private ComboBox<Bean> padreCombo;
+	@FXML
+	private TableView<Property> propiedadesTable;
 
-    @FXML
-    private TableView<Property> propiedadesTable;
+	@FXML
+	private TableColumn<Property, String> nombreColumn;
 
-    @FXML
-    private Button quitarPadreButton;
+	@FXML
+	private TableColumn<Property, Boolean> soloLecturaColumn;
 
-    @FXML
-    private TableColumn<Property, Boolean> soloLecturaColumn;
+	@FXML
+	private TableColumn<Property, Type> tipoColumn;
 
-    @FXML
-    private TableColumn<Property, Type> tipoColumn;
+	@FXML
+	private TableColumn<Property, Bean> genericoColumn;
 
-    @FXML
-    private GridPane view;
+	public BeanController() throws IOException {
+		FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/BeanView.fxml"));
+		loader.setController(this);
+		loader.load();
+	}
 
-    public GridPane getView() {
-        return view;
-    }
+	@Override
+	public void initialize(URL location, ResourceBundle resources) {
+		
+		// bindings
+		
+		selectedProperty.bind(propiedadesTable.getSelectionModel().selectedItemProperty());
+		
+		nombreText.textProperty().bindBidirectional(name);
+		padreCombo.valueProperty().bindBidirectional(parent);
+		padreCombo.itemsProperty().bind(beans);
+		propiedadesTable.itemsProperty().bind(properties);
+		
+		quitarPadreButton.disableProperty().bind(parent.isNull());
+		editarPropiedadButton.disableProperty().bind(selectedProperty.isNull());
+		eliminarPropiedadButton.disableProperty().bind(selectedProperty.isNull());
+		
+		editBeanController.beansProperty().bind(beans);
+		
+		// cell value factories
+		
+		nombreColumn.setCellValueFactory(v -> v.getValue().nameProperty());
+		soloLecturaColumn.setCellValueFactory(v -> v.getValue().readOnlyProperty());
+		tipoColumn.setCellValueFactory(v -> v.getValue().typeProperty());
+		genericoColumn.setCellValueFactory(v -> v.getValue().genericProperty());
+		
+		// cell factories
+		
+		soloLecturaColumn.setCellFactory(CheckBoxTableCell.forTableColumn(soloLecturaColumn));
+		
+		// listener
+		
+		bean.addListener((o, ov, nv) -> onBeanChanged(o, ov, nv));
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+	}
 
-        // bindings
+	private void onBeanChanged(ObservableValue<? extends Bean> o, Bean ov, Bean nv) {
 
-        nombreText.textProperty().bindBidirectional(name);
-        padreCombo.valueProperty().bindBidirectional(parent);
-        padreCombo.itemsProperty().bind(beans);
-        propiedadesTable.itemsProperty().bind(properties);
+		if (ov != null) {
+			// desbindeo del bean viejo
+			name.unbindBidirectional(ov.nameProperty());
+			parent.unbindBidirectional(ov.parentProperty());
+			properties.unbind();
+		}
+		
+		if (nv != null) {
+			// bindeo del bean nuevo
+			name.bindBidirectional(nv.nameProperty());
+			parent.bindBidirectional(nv.parentProperty());
+			properties.bind(nv.propertiesProperty());
+		}
+		
+	}
 
-        quitarPadreButton.disableProperty().bind(parent.isNull());
+	public GridPane getView() {
+		return view;
+	}
 
-        //cell value factories
+	@FXML
+	void onEditarPropiedadAction(ActionEvent event) {
 
-        nombreColumn.setCellValueFactory(v -> v.getValue().nameProperty());
-        soloLecturaColumn.setCellValueFactory(v -> v.getValue().readOnlyProperty());
-        tipoColumn.setCellValueFactory(v -> v.getValue().typeProperty());
-        genericoColumn.setCellValueFactory(v -> v.getValue().genericProperty());
+		editBeanController.show(selectedProperty.get());
+		
+	}
 
-        //cell factories
+	@FXML
+	void onEliminarPropiedadAction(ActionEvent event) {
 
-        soloLecturaColumn.setCellFactory(CheckBoxTableCell.forTableColumn(soloLecturaColumn));
+		Property selected = selectedProperty.get();
+		if (FXCodeGenApp.confirm(
+				"Eliminar propiedad", 
+				"Se va a eliminar la propiedad '" + selected.getName() + "'.", 
+				"¿Desea continuar?")) {
+			
+			properties.remove(selected);
+			
+		}
+		
+	}
 
-        //listener
+	@FXML
+	void onNuevaPropiedadAction(ActionEvent event) {
 
-        bean.addListener((o, ov, nv) -> onBeanChanged(o, ov, nv));
+		Property property = new Property();
+		property.setName("nuevaPropiedad");
+		property.setType(Type.STRING);
+		property.setGeneric(null);
+		property.setReadOnly(false);
+		
+		properties.add(property);
+		
+		propiedadesTable.getSelectionModel().select(property);
+		
+		editBeanController.show(property);
+		
+	}
 
-    }
+	@FXML
+	void onQuitarPadreAction(ActionEvent event) {
+		parent.set(null);
+	}
 
-    private void onBeanChanged(ObservableValue<? extends Bean> o, Bean ov, Bean nv) {
-
-        if (ov != null) {
-            name.unbindBidirectional(ov.nameProperty());
-            parent.unbindBidirectional(ov.parentProperty());
-            properties.unbind();
-        }
-        if (nv != null) {
-            name.bindBidirectional(nv.nameProperty());
-            parent.bindBidirectional(nv.parentProperty());
-            properties.bind(nv.propertiesProperty());
-        }
-    }
-
-    public BeanController() throws IOException {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/BeanView.fxml"));
-        loader.setController(this);
-        loader.load();
-    }
-
-    @FXML
-    void onEditarPropiedadButton(ActionEvent event) {
-
-    }
-
-    @FXML
-    void onEliminarPropiedadButton(ActionEvent event) {
-
-    }
-
-    @FXML
-    void onNuevaPropiedadButton(ActionEvent event) {
-
-        Property nuevo = new Property();
-        nuevo.setName("nuevaPropiedad");
-        nuevo.setType(Type.STRING);
-        nuevo.setReadOnly(false);
-        nuevo.setGeneric(null);
-        
-        properties.setAll(nuevo);
-
-        propiedadesTable.getSelectionModel().select(nuevo);
-
-    }
-
-    @FXML
-    void onQuitarPadreButton(ActionEvent event) {
-
-        parent.set(null);
-    }
-    // getters y setters
-
-    public final ObjectProperty<Bean> beanProperty() {
+	public ObjectProperty<Bean> beanProperty() {
 		return this.bean;
 	}
 
-	public final Bean getBean() {
+	// getters y setters
+
+	public Bean getBean() {
 		return this.beanProperty().get();
 	}
 
-	public final void setBean(final Bean bean) {
+	public void setBean(final Bean bean) {
 		this.beanProperty().set(bean);
 	}
 
-	public final ListProperty<Bean> beansProperty() {
+	public ListProperty<Bean> beansProperty() {
 		return this.beans;
 	}
 
-	public final ObservableList<Bean> getBeans() {
+	public ObservableList<Bean> getBeans() {
 		return this.beansProperty().get();
 	}
 
-	public final void setBeans(final ObservableList<Bean> beans) {
+	public void setBeans(final ObservableList<Bean> beans) {
 		this.beansProperty().set(beans);
 	}
 
